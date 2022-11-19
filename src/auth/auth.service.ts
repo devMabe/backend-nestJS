@@ -24,7 +24,7 @@ export class AuthService {
 
   public greetings(@Req() req: Request) {
     const response = {
-      email: req['user']?.email,
+      saludo: "Bienvenid@ "req['user']?.email,
     };
     return response;
   }
