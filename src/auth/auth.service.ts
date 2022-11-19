@@ -23,10 +23,11 @@ export class AuthService {
   constructor(private readonly firebaseservice: FirebaseService) {} //usaremos un servicio de firebase ,
 
   public greetings(@Req() req: Request) {
-    const response = {
-      saludo: "Bienvenid@ " + req['user']?.email,
-    };
-    return response;
+    if (req['user']?.email === undefined) {
+      return new HttpException('Asegurate de tener una sesión iniciada', HttpStatus.UNAUTHORIZED);
+    }else{
+      return "Bienvenid@ " + req['user']?.email;
+    }
   }
 
   //permitirá a un usuario iniciar sesión en la app. con email y password.
