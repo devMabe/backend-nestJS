@@ -1,24 +1,24 @@
-import { Post } from '@nestjs/common';
+import { Post, Req } from '@nestjs/common';
 import { Body } from '@nestjs/common';
 import { Get } from '@nestjs/common';
 import { Controller } from '@nestjs/common';
 import { User } from 'src/models/user.model';
 import { AuthService } from './auth.service';
+import { Request } from 'express';
 
-@Controller('auth')
+@Controller('/')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
   @Get('greetings')
-  public greetings(){
-    return this.authService.greetings();
-   
+  public greetings(@Req() req: Request){
+    return this.authService.greetings(req);
   }
+
 
   @Post('login')
   public login(@Body() body:  Pick<User , 'email' | 'password'>){
     return this.authService.login(body.email , body.password);
-    
   }
 
   @Post('register')

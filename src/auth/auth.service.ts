@@ -1,9 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus, Req } from '@nestjs/common';
 import { FirebaseService } from 'src/firebase/firebase.service';
 import { User } from 'src/models/user.model';
-import { FirebaseError } from 'firebase/app';
+import { Request } from 'express';
 
 import {
+  AuthError,
   createUserWithEmailAndPassword,
   signInWithEmailAndPassword,
   UserCredential,
@@ -16,23 +17,23 @@ import {
   DocumentSnapshot,
   DocumentData,
 } from 'firebase/firestore';
-import { HttpException } from '@nestjs/common';
-import { HttpStatus } from '@nestjs/common';
-
 
 @Injectable()
 export class AuthService {
-  constructor(private firebaseservice: FirebaseService) {}     //usaremos un servicio de firebase
+  constructor(private readonly firebaseservice: FirebaseService) {} //usaremos un servicio de firebase ,
 
-  //Debe retornar al usuario un saludo ej. 'Hello Word', pero este servicio debe protegido con autenticación, es decir solo debe ser exitoso si el usuario tiene una sesión iniciada, de lo contrario deberá retornar error 401
-  public greetings(): string {
-
-    //logica de autentificacion para controlar que solo pueda devolver el mensaje si se ha iniciado sesion correactamente.
-    return 'Hello Word!';
+  public greetings(@Req() req: Request) {
+    const response = {
+      email: req['user']?.email,
+    };
+    return response;
   }
 
   //permitirá a un usuario iniciar sesión en la app. con email y password.
-  public async login(email: string,password: string,): Promise<Omit<User, 'password'>> {
+  public async login(
+    email: string,
+    password: string,
+  ): Promise<Omit<User, 'password'>> {
     try {
       const userCredential: UserCredential = await signInWithEmailAndPassword(
         this.firebaseservice.auth,
@@ -41,21 +42,37 @@ export class AuthService {
       );
       if (userCredential) {
         const id: string = userCredential.user.uid;
+        const idToken: string = await userCredential.user.getIdToken(true);
         const docRef: DocumentReference = doc(
           this.firebaseservice.userCollection,
           id,
         );
         const snap: DocumentSnapshot<DocumentData> = await getDoc(docRef);
+
         const usuarioLogged: User = {
           ...snap.data(),
           id: snap.id,
+          accssesToken: idToken,
         } as User;
 
         delete usuarioLogged.password;
         return usuarioLogged;
       }
     } catch (error) {
-      console.log(`[ERROR]: ${error}`);
+      const firebaseAuthError = error as AuthError;
+      console.warn(firebaseAuthError.code);
+      if (firebaseAuthError.code === 'auth/wrong-password') {
+        throw new HttpException(
+          'Email o contraseña incorrecta.',
+          HttpStatus.FORBIDDEN,
+        );
+      }
+      if (firebaseAuthError.code === 'auth/user-not-found') {
+        throw new HttpException(
+          'El email no fue encontrado.',
+          HttpStatus.NOT_FOUND,
+        );
+      }
     }
   }
 
@@ -78,7 +95,15 @@ export class AuthService {
         await setDoc(docRef, body);
       }
     } catch (error: unknown) {
-      console.log(`[ERROR]: ${error}`);
+      const firebaseAuthError = error as AuthError;
+      console.log(firebaseAuthError.code);
+
+      if (firebaseAuthError.code === 'auth/email-already-in-use') {
+        throw new HttpException(
+          'Este Correo ya se encuentra registrado',
+          HttpStatus.CONFLICT,
+        );
+      }
     }
   }
 }

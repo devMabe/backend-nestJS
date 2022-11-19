@@ -28,7 +28,7 @@ export class FirebaseService {
       projectId: configservice.get<string>('projectId'),
       storageBucket: configservice.get<string>('storageBucket'),
     });
-
+    
     this.auth = getAuth(this.app);
     this.firestore = getFirestore(this.app);
     this._createCollections();
